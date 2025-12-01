@@ -1,0 +1,202 @@
+{% extends "base.html" %}
+
+{% block title %}登录 - 能源管理系统{% endblock %}
+
+{% block content %}
+<div class="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-700">
+    <div class="bg-white p-8 rounded-lg shadow-2xl w-full max-w-md">
+        <!-- Logo和标题 -->
+        <div class="text-center mb-8">
+            <div class="inline-block bg-blue-100 p-4 rounded-full mb-4">
+                <i class="fas fa-bolt text-blue-600 text-4xl"></i>
+            </div>
+            <h1 class="text-3xl font-bold text-gray-800">能源管理系统</h1>
+            <p class="text-gray-600 mt-2">请登录以继续</p>
+        </div>
+        
+        <!-- 登录表单 -->
+        <form id="loginForm" class="space-y-4">
+            <!-- 用户名输入 -->
+            <div>
+                <label class="block text-gray-700 font-semibold mb-2" for="username">
+                    <i class="fas fa-user mr-2"></i>用户名
+                </label>
+                <input type="text" 
+                       id="username" 
+                       name="username" 
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                       placeholder="请输入用户名"
+                       required
+                       autocomplete="username">
+                <div id="usernameError" class="text-red-600 text-sm mt-1 hidden"></div>
+            </div>
+            
+            <!-- 密码输入 -->
+            <div>
+                <label class="block text-gray-700 font-semibold mb-2" for="password">
+                    <i class="fas fa-lock mr-2"></i>密码
+                </label>
+                <div class="relative">
+                    <input type="password" 
+                           id="password" 
+                           name="password"
+                           class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                           placeholder="请输入密码"
+                           required
+                           autocomplete="current-password">
+                    <button type="button" 
+                            id="togglePassword" 
+                            class="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
+                <div id="passwordError" class="text-red-600 text-sm mt-1 hidden"></div>
+            </div>
+            
+            <!-- 错误消息 -->
+            <div id="errorMessage" class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg hidden">
+                <i class="fas fa-exclamation-circle mr-2"></i>
+                <span id="errorText"></span>
+            </div>
+            
+            <!-- 登录按钮 -->
+            <button type="submit" 
+                    id="loginBtn"
+                    class="w-full bg-blue-600 text-white py-3 rounded-lg hover:bg-blue-700 transition font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5">
+                <i class="fas fa-sign-in-alt mr-2"></i>登录
+            </button>
+        </form>
+        
+        <!-- 提示信息 -->
+        <div class="mt-6 text-center text-sm text-gray-600">
+            <p>
+                <i class="fas fa-info-circle mr-1"></i>
+                默认管理员账户: admin / admin123
+            </p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 表单验证
+    function validateForm() {
+        let isValid = true;
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const usernameError = document.getElementById('usernameError');
+        const passwordError = document.getElementById('passwordError');
+        
+        // 重置错误消息
+        usernameError.classList.add('hidden');
+        passwordError.classList.add('hidden');
+        
+        // 验证用户名
+        if (username.length < 3) {
+            usernameError.textContent = '用户名至少需要3个字符';
+            usernameError.classList.remove('hidden');
+            isValid = false;
+        }
+        
+        // 验证密码
+        if (password.length < 6) {
+            passwordError.textContent = '密码至少需要6个字符';
+            passwordError.classList.remove('hidden');
+            isValid = false;
+        }
+        
+        return isValid;
+    }
+    
+    // 切换密码可见性
+    document.getElementById('togglePassword').addEventListener('click', function() {
+        const passwordInput = document.getElementById('password');
+        const icon = this.querySelector('i');
+        
+        if (passwordInput.type === 'password') {
+            passwordInput.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            passwordInput.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    });
+    
+    // 表单提交处理
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        // 验证表单
+        if (!validateForm()) {
+            return;
+        }
+        
+        const username = document.getElementById('username').value.trim();
+        const password = document.getElementById('password').value;
+        const errorDiv = document.getElementById('errorMessage');
+        const errorText = document.getElementById('errorText');
+        const loginBtn = document.getElementById('loginBtn');
+        
+        // 隐藏错误消息
+        errorDiv.classList.add('hidden');
+        
+        // 禁用登录按钮
+        loginBtn.disabled = true;
+        loginBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>登录中...';
+        
+        try {
+            const response = await fetch('/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ username, password })
+            });
+            
+            const data = await response.json();
+            
+            if (data.success) {
+                // 登录成功，显示成功消息
+                loginBtn.innerHTML = '<i class="fas fa-check mr-2"></i>登录成功';
+                loginBtn.classList.remove('bg-blue-600', 'hover:bg-blue-700');
+                loginBtn.classList.add('bg-green-600');
+                
+                // 延迟跳转
+                setTimeout(() => {
+                    window.location.href = data.redirect;
+                }, 500);
+            } else {
+                // 登录失败，显示错误消息
+                errorText.textContent = data.message || '登录失败，请检查用户名和密码';
+                errorDiv.classList.remove('hidden');
+                
+                // 恢复登录按钮
+                loginBtn.disabled = false;
+                loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>登录';
+            }
+        } catch (error) {
+            console.error('登录错误:', error);
+            errorText.textContent = '登录失败，请稍后重试';
+            errorDiv.classList.remove('hidden');
+            
+            // 恢复登录按钮
+            loginBtn.disabled = false;
+            loginBtn.innerHTML = '<i class="fas fa-sign-in-alt mr-2"></i>登录';
+        }
+    });
+    
+    // 清除错误消息当用户开始输入
+    document.getElementById('username').addEventListener('input', function() {
+        document.getElementById('usernameError').classList.add('hidden');
+        document.getElementById('errorMessage').classList.add('hidden');
+    });
+    
+    document.getElementById('password').addEventListener('input', function() {
+        document.getElementById('passwordError').classList.add('hidden');
+        document.getElementById('errorMessage').classList.add('hidden');
+    });
+</script>
+{% endblock %}

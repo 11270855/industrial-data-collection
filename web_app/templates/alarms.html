@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}报警管理 - 能源管理系统{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <nav class="bg-blue-600 text-white p-4">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-xl font-bold">能源管理系统</h1>
+            <div>
+                <a href="/" class="mr-4 hover:underline">仪表盘</a>
+                <span class="mr-4">{{ session.username }}</span>
+                <button onclick="logout()" class="bg-blue-700 px-4 py-2 rounded hover:bg-blue-800">
+                    登出
+                </button>
+            </div>
+        </div>
+    </nav>
+    
+    <div class="container mx-auto p-6">
+        <h2 class="text-2xl font-bold mb-6">报警管理</h2>
+        <div class="bg-white p-6 rounded-lg shadow">
+            <p class="text-gray-600">报警管理页面将在任务11中实现</p>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+async function logout() {
+    const response = await fetch('/auth/logout', { method: 'POST' });
+    const data = await response.json();
+    if (data.success) window.location.href = data.redirect;
+}
+</script>
+{% endblock %}

@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}能源管理系统{% endblock %}</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    {% block extra_head %}{% endblock %}
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+    {% if session.get('user_id') %}
+    <!-- 导航栏 -->
+    <nav class="bg-blue-600 text-white shadow-lg">
+        <div class="container mx-auto px-4">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo和标题 -->
+                <div class="flex items-center space-x-4">
+                    <i class="fas fa-bolt text-2xl"></i>
+                    <h1 class="text-xl font-bold">能源管理系统</h1>
+                </div>
+                
+                <!-- 导航菜单 -->
+                <div class="hidden md:flex space-x-1">
+                    <a href="/" class="px-4 py-2 rounded hover:bg-blue-700 transition {% if request.path == '/' %}bg-blue-700{% endif %}">
+                        <i class="fas fa-tachometer-alt mr-2"></i>仪表盘
+                    </a>
+                    <a href="/history" class="px-4 py-2 rounded hover:bg-blue-700 transition {% if request.path == '/history' %}bg-blue-700{% endif %}">
+                        <i class="fas fa-history mr-2"></i>历史数据
+                    </a>
+                    <a href="/alarms" class="px-4 py-2 rounded hover:bg-blue-700 transition {% if request.path == '/alarms' %}bg-blue-700{% endif %}">
+                        <i class="fas fa-bell mr-2"></i>报警
+                    </a>
+                    {% if session.get('role') == 'admin' %}
+                    <a href="/settings" class="px-4 py-2 rounded hover:bg-blue-700 transition {% if request.path == '/settings' %}bg-blue-700{% endif %}">
+                        <i class="fas fa-cog mr-2"></i>设置
+                    </a>
+                    {% endif %}
+                </div>
+                
+                <!-- 用户信息 -->
+                <div class="flex items-center space-x-4">
+                    <span class="hidden md:inline">
+                        <i class="fas fa-user mr-2"></i>{{ session.username }}
+                    </span>
+                    <button onclick="logout()" class="bg-blue-700 px-4 py-2 rounded hover:bg-blue-800 transition">
+                        <i class="fas fa-sign-out-alt mr-2"></i>登出
+                    </button>
+                </div>
+                
+                <!-- 移动端菜单按钮 -->
+                <button id="mobileMenuBtn" class="md:hidden">
+                    <i class="fas fa-bars text-2xl"></i>
+                </button>
+            </div>
+            
+            <!-- 移动端菜单 -->
+            <div id="mobileMenu" class="hidden md:hidden pb-4">
+                <a href="/" class="block px-4 py-2 rounded hover:bg-blue-700 transition {% if request.path == '/' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-tachometer-alt mr-2"></i>仪表盘
+                </a>
+                <a href="/history" class="block px-4 py-2 rounded hover:bg-blue-700 transition {% if request.path == '/history' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-history mr-2"></i>历史数据
+                </a>
+                <a href="/alarms" class="block px-4 py-2 rounded hover:bg-blue-700 transition {% if request.path == '/alarms' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-bell mr-2"></i>报警
+                </a>
+                {% if session.get('role') == 'admin' %}
+                <a href="/settings" class="block px-4 py-2 rounded hover:bg-blue-700 transition {% if request.path == '/settings' %}bg-blue-700{% endif %}">
+                    <i class="fas fa-cog mr-2"></i>设置
+                </a>
+                {% endif %}
+            </div>
+        </div>
+    </nav>
+    {% endif %}
+    
+    <!-- 主内容区域 -->
+    <main class="flex-1">
+        {% block content %}{% endblock %}
+    </main>
+    
+    {% if session.get('user_id') %}
+    <!-- 页脚 -->
+    <footer class="bg-gray-800 text-white py-4 mt-8">
+        <div class="container mx-auto px-4 text-center">
+            <p class="text-sm">
+                &copy; 2025 能源管理系统 | 
+                <i class="fas fa-server mr-1"></i>系统状态: <span class="text-green-400">正常</span> | 
+                <i class="fas fa-clock mr-1"></i><span id="currentTime"></span>
+            </p>
+        </div>
+    </footer>
+    {% endif %}
+    
+    <!-- 全局脚本 -->
+    <script>
+        // 移动端菜单切换
+        const mobileMenuBtn = document.getElementById('mobileMenuBtn');
+        const mobileMenu = document.getElementById('mobileMenu');
+        
+        if (mobileMenuBtn) {
+            mobileMenuBtn.addEventListener('click', () => {
+                mobileMenu.classList.toggle('hidden');
+            });
+        }
+        
+        // 登出功能
+        async function logout() {
+            try {
+                const response = await fetch('/auth/logout', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                });
+                const data = await response.json();
+                if (data.success) {
+                    window.location.href = data.redirect;
+                }
+            } catch (error) {
+                console.error('登出失败:', error);
+                alert('登出失败，请稍后重试');
+            }
+        }
+        
+        // 更新当前时间
+        function updateTime() {
+            const now = new Date();
+            const timeStr = now.toLocaleString('zh-CN', {
+                year: 'numeric',
+                month: '2-digit',
+                day: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            const timeElement = document.getElementById('currentTime');
+            if (timeElement) {
+                timeElement.textContent = timeStr;
+            }
+        }
+        
+        if (document.getElementById('currentTime')) {
+            updateTime();
+            setInterval(updateTime, 1000);
+        }
+    </script>
+    
+    {% block scripts %}{% endblock %}
+</body>
+</html>

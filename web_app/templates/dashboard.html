@@ -1,0 +1,223 @@
+{% extends "base.html" %}
+
+{% block title %}仪表盘 - 能源管理系统{% endblock %}
+
+{% block extra_head %}
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+{% endblock %}
+
+{% block content %}
+<div class="container mx-auto px-4 py-6">
+    <!-- 页面标题 -->
+    <div class="mb-6">
+        <h2 class="text-3xl font-bold text-gray-800">
+            <i class="fas fa-tachometer-alt mr-3"></i>实时监控仪表盘
+        </h2>
+        <p class="text-gray-600 mt-2">生产线设备状态与能源消耗实时监控</p>
+    </div>
+    
+    <!-- 设备状态卡片区域 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+        <!-- 传送带状态卡片 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fas fa-conveyor-belt mr-2 text-blue-600"></i>传送带
+                </h3>
+                <span id="conveyorStatus" class="px-3 py-1 rounded-full text-sm font-semibold bg-gray-200 text-gray-600">
+                    <i class="fas fa-circle mr-1"></i>待机
+                </span>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">速度</span>
+                    <span id="conveyorSpeed" class="font-bold text-xl text-blue-600">0.0 m/s</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">功率</span>
+                    <span id="conveyorPower" class="font-bold text-xl text-green-600">0.0 kW</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">累计能耗</span>
+                    <span id="conveyorEnergy" class="font-bold text-lg text-purple-600">0.0 kWh</span>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="conveyorPowerBar" class="bg-blue-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">功率负载</p>
+            </div>
+        </div>
+        
+        <!-- 工位1状态卡片 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fas fa-industry mr-2 text-orange-600"></i>加工工位1
+                </h3>
+                <span id="station1Status" class="px-3 py-1 rounded-full text-sm font-semibold bg-gray-200 text-gray-600">
+                    <i class="fas fa-circle mr-1"></i>待机
+                </span>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">状态</span>
+                    <span id="station1Active" class="font-bold text-lg">未激活</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">功率</span>
+                    <span id="station1Power" class="font-bold text-xl text-green-600">0.0 kW</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">累计能耗</span>
+                    <span id="station1Energy" class="font-bold text-lg text-purple-600">0.0 kWh</span>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="station1PowerBar" class="bg-orange-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">功率负载</p>
+            </div>
+        </div>
+        
+        <!-- 工位2状态卡片 -->
+        <div class="bg-white rounded-lg shadow-lg p-6 hover:shadow-xl transition">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fas fa-industry mr-2 text-red-600"></i>加工工位2
+                </h3>
+                <span id="station2Status" class="px-3 py-1 rounded-full text-sm font-semibold bg-gray-200 text-gray-600">
+                    <i class="fas fa-circle mr-1"></i>待机
+                </span>
+            </div>
+            <div class="space-y-3">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">状态</span>
+                    <span id="station2Active" class="font-bold text-lg">未激活</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">功率</span>
+                    <span id="station2Power" class="font-bold text-xl text-green-600">0.0 kW</span>
+                </div>
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">累计能耗</span>
+                    <span id="station2Energy" class="font-bold text-lg text-purple-600">0.0 kWh</span>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t">
+                <div class="w-full bg-gray-200 rounded-full h-2">
+                    <div id="station2PowerBar" class="bg-red-600 h-2 rounded-full transition-all" style="width: 0%"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">功率负载</p>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 图表和报警区域 -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-6">
+        <!-- 能耗趋势图 -->
+        <div class="lg:col-span-2 bg-white rounded-lg shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fas fa-chart-line mr-2 text-green-600"></i>能耗趋势
+                </h3>
+                <div class="flex space-x-2">
+                    <button class="px-3 py-1 text-sm bg-blue-100 text-blue-600 rounded hover:bg-blue-200 transition">
+                        1小时
+                    </button>
+                    <button class="px-3 py-1 text-sm bg-gray-100 text-gray-600 rounded hover:bg-gray-200 transition">
+                        24小时
+                    </button>
+                </div>
+            </div>
+            <div class="relative" style="height: 300px;">
+                <canvas id="energyChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- 报警列表区域 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fas fa-bell mr-2 text-red-600"></i>最新报警
+                </h3>
+                <a href="/alarms" class="text-sm text-blue-600 hover:text-blue-800">
+                    查看全部 <i class="fas fa-arrow-right ml-1"></i>
+                </a>
+            </div>
+            <div id="alarmsList" class="space-y-3 max-h-80 overflow-y-auto">
+                <!-- 报警项将通过JavaScript动态加载 -->
+                <div class="text-center text-gray-500 py-8">
+                    <i class="fas fa-check-circle text-4xl mb-2"></i>
+                    <p>暂无报警</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- OEE和生产统计区域 -->
+    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- OEE图表 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">
+                    <i class="fas fa-chart-bar mr-2 text-purple-600"></i>设备综合效率 (OEE)
+                </h3>
+                <span id="oeeValue" class="text-2xl font-bold text-purple-600">0%</span>
+            </div>
+            <div class="relative" style="height: 250px;">
+                <canvas id="oeeChart"></canvas>
+            </div>
+        </div>
+        
+        <!-- 生产统计 -->
+        <div class="bg-white rounded-lg shadow-lg p-6">
+            <h3 class="text-lg font-semibold text-gray-800 mb-4">
+                <i class="fas fa-box mr-2 text-indigo-600"></i>生产统计
+            </h3>
+            <div class="grid grid-cols-2 gap-4">
+                <div class="bg-blue-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600">产品计数</span>
+                        <i class="fas fa-box-open text-blue-600"></i>
+                    </div>
+                    <p id="productCount" class="text-3xl font-bold text-blue-600">0</p>
+                </div>
+                <div class="bg-red-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600">不良品</span>
+                        <i class="fas fa-times-circle text-red-600"></i>
+                    </div>
+                    <p id="rejectCount" class="text-3xl font-bold text-red-600">0</p>
+                </div>
+                <div class="bg-green-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600">运行时间</span>
+                        <i class="fas fa-clock text-green-600"></i>
+                    </div>
+                    <p id="runTime" class="text-2xl font-bold text-green-600">0h 0m</p>
+                </div>
+                <div class="bg-yellow-50 rounded-lg p-4">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-gray-600">停机时间</span>
+                        <i class="fas fa-pause-circle text-yellow-600"></i>
+                    </div>
+                    <p id="downTime" class="text-2xl font-bold text-yellow-600">0h 0m</p>
+                </div>
+            </div>
+            <div class="mt-4 pt-4 border-t">
+                <div class="flex justify-between items-center">
+                    <span class="text-gray-600">合格率</span>
+                    <span id="qualityRate" class="text-xl font-bold text-green-600">100%</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+{% endblock %}
