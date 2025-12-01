@@ -17,67 +17,57 @@
 系统采用分层架构设计，从底层设备控制到上层数据可视化，实现完整的工业自动化解决方案。
 
 ```mermaid
-graph TB
-    subgraph 用户层["👥 用户层"]
-        Browser["🌐 Web浏览器"]
-        Admin["👨‍💼 管理员终端"]
+graph LR
+    subgraph Frontend["前端界面"]
+        HTML["📄 HTML模板"]
+        CSS["🎨 Tailwind CSS"]
+        JS["⚡ JavaScript"]
+        Charts["📊 Chart.js"]
     end
-    
-    subgraph 应用层["💻 应用层"]
-        subgraph WebApp["Flask Web应用"]
-            Auth["🔐 认证模块"]
-            API["📡 API路由"]
-            Query["🔍 数据查询"]
-        end
-        
-        subgraph PythonClient["Python OPC UA客户端"]
-            Subscribe["📥 数据订阅"]
-            Process["⚙️ 数据清洗"]
-            Alarm["🚨 报警处理"]
-        end
-        
-        Database[("💾 MySQL数据库<br/>能源数据 | 生产数据 | 报警记录")]
+
+    subgraph Backend["后端服务"]
+        Flask["🌶️ Flask框架"]
+        Routes["🛣️ 路由模块"]
+        Models["📋 数据模型"]
     end
-    
-    subgraph 通信层["🔌 通信层"]
-        subgraph KepServer["KepServerEX"]
-            OPCServer["📊 OPC UA服务器"]
-            Mapping["🔄 数据映射"]
-            Tags["🏷️ 标签管理"]
-        end
+
+    subgraph DataCollection["数据采集"]
+        OPCClient["🔌 OPC UA客户端"]
+        Processor["⚙️ 数据处理器"]
+        AlarmHandler["🚨 报警处理器"]
     end
-    
-    subgraph 控制层["🎛️ 控制层"]
-        subgraph PLC["CodeSys SoftPLC"]
-            Control["⚡ 设备控制逻辑"]
-            Energy["📈 能源计量"]
-            Monitor["👁️ 状态监控"]
-        end
+
+    subgraph Storage["数据存储"]
+        MySQL["💾 MySQL"]
+        SQLAlchemy["🔗 SQLAlchemy ORM"]
     end
-    
-    subgraph 设备层["🏭 虚拟设备层"]
-        Conveyor["🔄 上料传送带"]
-        Station1["🔧 加工工位1"]
-        Station2["🔧 加工工位2"]
-        Reject["❌ 剔除机构"]
+
+    subgraph External["外部系统"]
+        KepServerExt["📡 KepServer"]
+        PLCExt["🎛️ PLC"]
+        SMTP["📧 SMTP服务器"]
     end
-    
-    Browser -->|HTTP/REST| WebApp
-    Admin -->|HTTP/REST| WebApp
-    WebApp -->|SQL查询| Database
-    PythonClient -->|数据存储| Database
-    PythonClient -->|OPC UA协议| KepServer
-    KepServer -->|CodeSys驱动| PLC
-    PLC -->|虚拟I/O| Conveyor
-    PLC -->|虚拟I/O| Station1
-    PLC -->|虚拟I/O| Station2
-    PLC -->|虚拟I/O| Reject
-    
-    style 用户层 fill:#e1f5ff
-    style 应用层 fill:#fff3e0
-    style 通信层 fill:#f3e5f5
-    style 控制层 fill:#e8f5e9
-    style 设备层 fill:#fce4ec
+
+    HTML --> Flask
+    CSS --> HTML
+    JS --> HTML
+    Charts --> JS
+    Flask --> Routes
+    Routes --> Models
+    Models --> SQLAlchemy
+    SQLAlchemy --> MySQL
+    OPCClient --> KepServerExt
+    KepServerExt --> PLCExt
+    Processor --> MySQL
+    AlarmHandler --> MySQL
+    AlarmHandler --> SMTP
+    Routes --> MySQL
+
+    style Frontend fill:#e3f2fd
+    style Backend fill:#fff9c4
+    style DataCollection fill:#f3e5f5
+    style Storage fill:#e8f5e9
+    style External fill:#ffebee
 ```
 
 ### 组件关系图
