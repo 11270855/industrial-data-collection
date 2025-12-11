@@ -90,7 +90,10 @@ class OPCUAClient:
                 self.client = Client(self.server_url, timeout=self.timeout)
                 
                 # 设置安全策略（开发环境使用None）
-                self.client.set_security_string("None")
+                try:
+                    self.client.set_security_string("None")
+                except Exception as sec_e:
+                    logger.warning(f"设置安全策略失败（可能不支持）: {sec_e}")
                 
                 # 连接到服务器
                 self.client.connect()
@@ -104,15 +107,23 @@ class OPCUAClient:
                 
             except Exception as e:
                 retry_count += 1
-                logger.error(f"连接失败 (尝试 {retry_count}/{self.max_retries}): {e}")
+                logger.error(f"OPC UA连接失败 (尝试 {retry_count}/{self.max_retries}): {e}")
+                
+                # 清理失败的连接
+                if self.client:
+                    try:
+                        self.client.disconnect()
+                    except:
+                        pass
+                    self.client = None
                 
                 if retry_count < self.max_retries:
-                    # 指数退避策略
-                    wait_time = self.retry_delay * (2 ** (retry_count - 1))
+                    # 指数退避策略，但限制最大等待时间为30秒
+                    wait_time = min(self.retry_delay * (2 ** (retry_count - 1)), 30)
                     logger.info(f"等待 {wait_time} 秒后重试...")
                     time.sleep(wait_time)
                 else:
-                    logger.error(f"达到最大重试次数 ({self.max_retries})，连接失败")
+                    logger.error(f"达到最大重试次数 ({self.max_retries})，OPC UA连接失败")
                     self.is_connected = False
                     return False
         

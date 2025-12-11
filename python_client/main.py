@@ -345,47 +345,71 @@ class DataCollector:
         last_production_collect_time = time.time()
         last_threshold_reload_time = time.time()
         
+        # 连接失败计数器
+        opcua_reconnect_failures = 0
+        db_reconnect_failures = 0
+        max_reconnect_failures = 5
+        
         try:
             while self.is_running and not self.shutdown_requested:
                 loop_start_time = time.time()
                 
-                # 1. 采集所有设备数据
-                for device_id, node_config in self.config.OPC_UA_NODES.items():
-                    if device_id == 'production' or device_id == 'energy':
-                        continue  # 这些节点单独处理
+                try:
+                    # 1. 采集所有设备数据
+                    for device_id, node_config in self.config.OPC_UA_NODES.items():
+                        if device_id == 'production' or device_id == 'energy':
+                            continue  # 这些节点单独处理
+                        
+                        device_data = self.collect_device_data(device_id, node_config)
+                        if device_data:
+                            self.process_and_store_data(device_data)
                     
-                    device_data = self.collect_device_data(device_id, node_config)
-                    if device_data:
-                        self.process_and_store_data(device_data)
-                
-                # 2. 检查是否需要批量写入
-                time_since_last_write = time.time() - self.last_batch_write_time
-                if time_since_last_write >= self.config.BATCH_WRITE_INTERVAL:
-                    self.batch_write_energy_data()
-                
-                # 3. 定期采集生产数据（每30秒）
-                time_since_last_production = time.time() - last_production_collect_time
-                if time_since_last_production >= 30:
-                    self.collect_and_store_production_data()
-                    last_production_collect_time = time.time()
-                
-                # 4. 定期重新加载阈值配置（每5分钟）
-                time_since_threshold_reload = time.time() - last_threshold_reload_time
-                if time_since_threshold_reload >= 300:
-                    self.load_thresholds()
-                    last_threshold_reload_time = time.time()
-                
-                # 5. 检查OPC UA连接状态
-                if not self.opcua_client.check_connection():
-                    self.logger.warning("OPC UA连接断开，尝试重连...")
-                    if self.opcua_client.reconnect():
-                        # 重新订阅节点
-                        self.opcua_client.subscribe_nodes(all_node_ids, self.data_change_callback)
-                
-                # 6. 检查数据库连接状态
-                if not self.db_manager.is_connected():
-                    self.logger.warning("数据库连接断开，尝试重连...")
-                    self.db_manager.reconnect()
+                    # 2. 检查是否需要批量写入
+                    time_since_last_write = time.time() - self.last_batch_write_time
+                    if time_since_last_write >= self.config.BATCH_WRITE_INTERVAL:
+                        self.batch_write_energy_data()
+                    
+                    # 3. 定期采集生产数据（每30秒）
+                    time_since_last_production = time.time() - last_production_collect_time
+                    if time_since_last_production >= 30:
+                        self.collect_and_store_production_data()
+                        last_production_collect_time = time.time()
+                    
+                    # 4. 定期重新加载阈值配置（每5分钟）
+                    time_since_threshold_reload = time.time() - last_threshold_reload_time
+                    if time_since_threshold_reload >= 300:
+                        self.load_thresholds()
+                        last_threshold_reload_time = time.time()
+                    
+                    # 5. 检查OPC UA连接状态
+                    if not self.opcua_client.check_connection():
+                        self.logger.warning("OPC UA连接断开，尝试重连...")
+                        if self.opcua_client.reconnect():
+                            # 重新订阅节点
+                            self.opcua_client.subscribe_nodes(all_node_ids, self.data_change_callback)
+                            opcua_reconnect_failures = 0  # 重置失败计数
+                        else:
+                            opcua_reconnect_failures += 1
+                            self.logger.error(f"OPC UA重连失败 ({opcua_reconnect_failures}/{max_reconnect_failures})")
+                            if opcua_reconnect_failures >= max_reconnect_failures:
+                                self.logger.error("OPC UA重连失败次数过多，程序将退出")
+                                break
+                    
+                    # 6. 检查数据库连接状态
+                    if not self.db_manager.is_connected():
+                        self.logger.warning("数据库连接断开，尝试重连...")
+                        if self.db_manager.reconnect():
+                            db_reconnect_failures = 0  # 重置失败计数
+                        else:
+                            db_reconnect_failures += 1
+                            self.logger.error(f"数据库重连失败 ({db_reconnect_failures}/{max_reconnect_failures})")
+                            if db_reconnect_failures >= max_reconnect_failures:
+                                self.logger.error("数据库重连失败次数过多，程序将退出")
+                                break
+                    
+                except Exception as loop_error:
+                    self.logger.error(f"主循环内部错误: {loop_error}", exc_info=True)
+                    # 继续运行，不要因为单次错误而退出
                 
                 # 7. 控制循环频率
                 loop_duration = time.time() - loop_start_time

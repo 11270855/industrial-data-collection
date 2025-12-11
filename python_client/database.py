@@ -6,7 +6,7 @@
 import logging
 import time
 from contextlib import contextmanager
-from sqlalchemy import create_engine, event, exc
+from sqlalchemy import create_engine, event, exc, text
 from sqlalchemy.orm import sessionmaker, scoped_session
 from sqlalchemy.pool import QueuePool
 from models import Base
@@ -70,7 +70,7 @@ class DatabaseManager:
                 
                 # 测试连接
                 with self.engine.connect() as conn:
-                    conn.execute("SELECT 1")
+                    conn.execute(text("SELECT 1"))
                 
                 # 创建会话工厂
                 self.session_factory = sessionmaker(bind=self.engine)
@@ -128,7 +128,7 @@ class DatabaseManager:
         
         try:
             with self.engine.connect() as conn:
-                conn.execute("SELECT 1")
+                conn.execute(text("SELECT 1"))
             return True
         except Exception:
             self._is_connected = False
@@ -146,7 +146,10 @@ class DatabaseManager:
             bool: 重连是否成功
         """
         logger.info("尝试重新连接数据库...")
-        self.disconnect()
+        try:
+            self.disconnect()
+        except Exception as e:
+            logger.warning(f"断开连接时出错: {e}")
         return self.connect(max_retries, retry_delay)
     
     @contextmanager
@@ -203,16 +206,19 @@ class DatabaseManager:
         Returns:
             函数执行结果
         """
+        last_error = None
         for attempt in range(max_retries):
             try:
                 return func()
             except exc.OperationalError as e:
+                last_error = e
                 logger.warning(f"数据库操作失败 (尝试 {attempt + 1}/{max_retries}): {e}")
                 if attempt < max_retries - 1:
                     # 检查连接状态，必要时重连
                     if not self.is_connected():
                         logger.info("检测到连接断开，尝试重新连接...")
-                        self.reconnect()
+                        if not self.reconnect(max_retries=1, retry_delay=retry_delay):
+                            logger.error("数据库重连失败")
                     time.sleep(retry_delay)
                 else:
                     logger.error("数据库操作失败，已达到最大重试次数")
@@ -220,6 +226,10 @@ class DatabaseManager:
             except Exception as e:
                 logger.error(f"数据库操作出错: {e}")
                 raise
+        
+        # 如果所有重试都失败了
+        if last_error:
+            raise last_error
     
     def get_pool_status(self):
         """获取连接池状态信息"""
