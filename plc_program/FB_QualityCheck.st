@@ -42,6 +42,9 @@ VAR
     iQualitySampleCount: INT := 0;   // 质量采样计数
     iQualityOKSamples: INT := 0;     // 合格采样数
     
+    // 计数标志
+    bCountUpdated: BOOL := FALSE;    // 计数已更新标志
+    
     // 采样参数
     iSamplesRequired: INT := 5;      // 需要的采样次数
     iSampleInterval: INT := 0;       // 采样间隔计数器
@@ -69,6 +72,7 @@ CASE eState OF
         iQualitySampleCount := 0;
         iQualityOKSamples := 0;
         iSampleInterval := 0;
+        bCountUpdated := FALSE;
         
         // 触发检测
         IF bEnable AND bTriggerCheckRising AND bProductPresent THEN
@@ -122,11 +126,14 @@ CASE eState OF
         bQualityNG := FALSE;
         bRejectActive := FALSE;
         
-        // 更新产品计数
-        iInternalProductCount := iInternalProductCount + 1;
+        // 更新产品计数（只在第一次进入时更新）
+        IF NOT bCountUpdated THEN
+            iInternalProductCount := iInternalProductCount + 1;
+            bCountUpdated := TRUE;
+        END_IF
         
-        // 等待产品移走或触发复位
-        IF NOT bProductPresent OR NOT bTriggerCheck THEN
+        // 等待产品移走
+        IF NOT bProductPresent THEN
             eState := 0; // 返回待机状态
         END_IF
     
@@ -136,9 +143,12 @@ CASE eState OF
         bQualityOK := FALSE;
         bQualityNG := TRUE;
         
-        // 更新计数
-        iInternalProductCount := iInternalProductCount + 1;
-        iInternalRejectCount := iInternalRejectCount + 1;
+        // 更新计数（只在第一次进入时更新）
+        IF NOT bCountUpdated THEN
+            iInternalProductCount := iInternalProductCount + 1;
+            iInternalRejectCount := iInternalRejectCount + 1;
+            bCountUpdated := TRUE;
+        END_IF
         
         // 进入剔除状态
         eState := 4;

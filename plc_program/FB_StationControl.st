@@ -12,7 +12,7 @@ VAR_OUTPUT
     bProcessComplete: BOOL;          // 加工完成
     rPower: REAL;                    // 功率消耗 (kW)
     bFault: BOOL;                    // 故障标志
-    sStatus: STRING := 'Standby';    // 状态文本
+    iStatus: INT;                    // 状态代码: 0=待机, 1=等待产品, 2=加工中, 3=完成, 4=故障
 END_VAR
 
 VAR
@@ -29,7 +29,7 @@ VAR
     tonCompleteDelay: TON;           // 完成延时定时器
     
     // 超时设置
-    tWaitTimeout: TIME := T#30s;     // 等待产品超时时间
+    tWaitTimeout: TIME := T#300s;    // 等待产品超时时间（5分钟，避免自动模式超时）
     tCompleteDelay: TIME := T#1s;    // 完成信号保持时间
     
     // 内部标志
@@ -49,7 +49,7 @@ IF bEmergencyStop THEN
     bProcessing := FALSE;
     bProcessComplete := FALSE;
     bFault := TRUE;
-    sStatus := 'Emergency Stop';
+    iStatus := 4; // 故障
     tonProcessTimer(IN := FALSE);
     tonWaitTimeout(IN := FALSE);
     RETURN;
@@ -66,7 +66,7 @@ CASE eState OF
         bProcessing := FALSE;
         bProcessComplete := FALSE;
         bFault := FALSE;
-        sStatus := 'Standby';
+        iStatus := 0; // 待机
         bProcessStarted := FALSE;
         
         // 复位定时器
@@ -82,13 +82,13 @@ CASE eState OF
         bActive := TRUE;
         bProcessing := FALSE;
         bProcessComplete := FALSE;
-        sStatus := 'Waiting for Product';
+        iStatus := 1; // 等待产品
         
         // 启动等待超时定时器
         tonWaitTimeout(IN := TRUE, PT := tWaitTimeout);
         
-        // 检测产品到达
-        IF bProductArrived OR (bProductPresent AND NOT bProductDetected) THEN
+        // 检测产品到达（使用电平检测，不依赖边沿）
+        IF bProductPresent AND NOT bProductDetected THEN
             bProductDetected := TRUE;
             eState := 2; // 进入加工状态
             tonWaitTimeout(IN := FALSE);
@@ -98,7 +98,7 @@ CASE eState OF
         IF tonWaitTimeout.Q THEN
             eState := 4; // 进入故障状态
             bFault := TRUE;
-            sStatus := 'Wait Timeout';
+            iStatus := 4; // 故障
         END_IF
         
         // 取消激活
@@ -110,7 +110,7 @@ CASE eState OF
         bActive := TRUE;
         bProcessing := TRUE;
         bProcessComplete := FALSE;
-        sStatus := 'Processing';
+        iStatus := 2; // 加工中
         
         // 启动加工定时器
         IF NOT bProcessStarted THEN
@@ -129,7 +129,7 @@ CASE eState OF
         IF NOT bProductPresent THEN
             eState := 4; // 进入故障状态
             bFault := TRUE;
-            sStatus := 'Product Lost';
+            iStatus := 4; // 故障
         END_IF
         
         // 紧急取消
@@ -141,7 +141,7 @@ CASE eState OF
         bActive := TRUE;
         bProcessing := FALSE;
         bProcessComplete := TRUE;
-        sStatus := 'Complete';
+        iStatus := 3; // 完成
         
         // 完成信号保持
         tonCompleteDelay(IN := TRUE, PT := tCompleteDelay);
@@ -164,6 +164,7 @@ CASE eState OF
         bProcessing := FALSE;
         bProcessComplete := FALSE;
         bFault := TRUE;
+        iStatus := 4; // 故障
         
         // 复位定时器
         tonProcessTimer(IN := FALSE);
