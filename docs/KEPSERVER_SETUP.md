@@ -1,17 +1,20 @@
-# KepServer配置指南
+# KepServer 配置指南
 
-本文档详细说明如何配置KepServerEX以连接CodeSys PLC并启用OPC UA服务器，实现能源管理系统的数据通信。
+本文档详细说明如何配置 KepServerEX 以连接 CodeSys PLC 并启用 OPC UA 服务器，实现能源管理系统的数据通信。
+
+> **快速参考**：如需 5 分钟内完成基础配置，直接阅读[快速配置步骤](#快速配置步骤)；如遇中文界面身份验证问题，参见[故障排查 · 问题4](#问题4身份验证失败)。
 
 ## 目录
 
 1. [前提条件](#前提条件)
-2. [KepServer安装](#kepserver安装)
-3. [创建通道](#创建通道)
-4. [添加设备](#添加设备)
-5. [配置标签](#配置标签)
-6. [启用OPC UA服务器](#启用opc-ua服务器)
-7. [测试连接](#测试连接)
-8. [故障排查](#故障排查)
+2. [快速配置步骤](#快速配置步骤)
+3. [KepServer安装](#kepserver安装)
+4. [创建通道](#创建通道)
+5. [添加设备](#添加设备)
+6. [配置标签](#配置标签)
+7. [启用OPC UA服务器](#启用opc-ua服务器)
+8. [测试连接](#测试连接)
+9. [故障排查](#故障排查)
 
 ---
 
@@ -35,7 +38,62 @@
 
 ---
 
-## KepServer安装
+## 快速配置步骤
+
+完成以下6步即可建立基础连接：
+
+### 1. 安装 KepServer
+
+- 安装 KepServerEX 6.x 或更高版本
+- 安装时勾选：✅ OPC UA Server  ✅ CodeSys Ethernet Driver
+
+### 2. 启动 KepServer
+
+```
+开始菜单 → KEPServerEX 6 Configuration
+```
+
+### 3. 创建通道（Channel）
+
+1. 右键 `Connectivity` → `New Channel`
+2. 驱动选择：`CodeSys Ethernet`
+3. 通道名称：`CodeSys_Channel`
+4. 接受默认设置完成
+
+### 4. 添加设备（Device）
+
+1. 右键 `CodeSys_Channel` → `New Device`
+2. 型号：`CodeSys V3.x`
+3. 设备名称：`ProductionLine_PLC`
+4. IP 地址：`127.0.0.1`（本地虚拟PLC）
+5. 端口：`1217`
+
+### 5. 启用 OPC UA 服务器
+
+1. 菜单：`Settings` → `OPC UA Configuration`
+2. ✅ 勾选 `Enable OPC UA Server`
+3. 点击 `User Manager` → ✅ 勾选 `Allow Anonymous Login`
+4. 确认端点 URL：`opc.tcp://localhost:4840`，Security Policy：`None`
+5. 点击 `OK`
+
+### 6. 验证配置
+
+#### 方法1：KepServer Quick Client
+
+1. 菜单：`Tools` → `Quick Client`
+2. Server URL：`opc.tcp://localhost:4840`，点击 `Connect`
+3. 应能看到设备和标签节点
+
+#### 方法2：Python 测试
+
+```bash
+cd python_client
+python main.py --test-connection
+```
+
+应显示：`✓ OPC UA连接成功`
+
+---
 
 ### 1. 安装KepServerEX
 
@@ -139,106 +197,237 @@
 
 ## 配置标签
 
-标签映射PLC中的变量，使其可通过OPC UA访问。
+标签映射PLC中的变量，使其可通过OPC UA访问。本节详细说明如何创建标签组和配置所有必需的标签。
 
 ### 标签命名规范
 
-格式：分组.变量名
+格式：`标签组.变量名`
 
-例如：DeviceControl.ConveyorStart
+例如：`DeviceControl.ConveyorStart`
 
-### 创建标签组
+### 标签组结构
 
-为了组织标签，我们创建以下标签组：
+为了更好地组织标签，我们创建以下标签组：
 
-1. DeviceControl - 设备控制变量
-2. SensorInput - 传感器输入
-3. EnergyData - 能源数据
-4. Production - 生产统计
-5. SystemStatus - 系统状态
+1. **DeviceControl** - 设备控制变量（可读写）
+2. **SensorInput** - 传感器输入（只读）
+3. **EnergyData** - 能源数据（只读）
+4. **Production** - 生产统计（只读）
+5. **SystemStatus** - 系统状态（只读）
+6. **DeviceStatus** - 设备状态详情（只读）
+7. **QualityControl** - 质量控制（只读）
 
-#### 创建标签组步骤
+### 创建标签组步骤
 
 1. 右键点击设备"ProductionLine_PLC"
 2. 选择"New Tag"
 3. 在"Name"字段输入组名（如DeviceControl）
 4. 在"Data Type"选择"Group"
 5. 点击"OK"
+6. 重复以上步骤创建所有标签组
 
-### 配置标签映射
+### 完整标签配置表
 
-以下是完整的标签配置表：
+以下是基于PLC程序的完整标签映射配置：
 
 #### 1. DeviceControl（设备控制）
 
-| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) |
-|---------|---------|---------|---------|-----------|
-| ConveyorStart | PLC_PRG.bConveyorStart | Boolean | Read/Write | 1000 |
-| ConveyorSpeed | PLC_PRG.rConveyorSpeed | Float | Read/Write | 1000 |
-| Station1Active | PLC_PRG.bStation1Active | Boolean | Read/Write | 1000 |
-| Station2Active | PLC_PRG.bStation2Active | Boolean | Read/Write | 1000 |
-| RejectActive | PLC_PRG.bRejectActive | Boolean | Read Only | 1000 |
-| SystemStart | PLC_PRG.bSystemStart | Boolean | Read/Write | 1000 |
-| SystemStop | PLC_PRG.bSystemStop | Boolean | Read/Write | 1000 |
-| EmergencyStop | PLC_PRG.bEmergencyStop | Boolean | Read/Write | 500 |
+控制命令和设定值，支持读写操作。
+
+| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) | 说明 |
+|---------|---------|---------|---------|-----------|------|
+| ConveyorStart | PLC_PRG.bConveyorStart | Boolean | Read/Write | 1000 | 传送带启动命令 |
+| ConveyorSpeed | PLC_PRG.rConveyorSpeed | Float | Read/Write | 1000 | 传送带速度设定 (0-5 m/s) |
+| Station1Active | PLC_PRG.bStation1Active | Boolean | Read/Write | 1000 | 工位1激活命令 |
+| Station2Active | PLC_PRG.bStation2Active | Boolean | Read/Write | 1000 | 工位2激活命令 |
+| SystemStart | PLC_PRG.bSystemStart | Boolean | Read/Write | 1000 | 系统启动命令 |
+| SystemStop | PLC_PRG.bSystemStop | Boolean | Read/Write | 1000 | 系统停止命令 |
+| EmergencyStop | PLC_PRG.bEmergencyStop | Boolean | Read/Write | 500 | 紧急停止（高优先级） |
+| AutoMode | PLC_PRG.bAutoMode | Boolean | Read/Write | 1000 | 自动运行模式开关 |
 
 #### 2. SensorInput（传感器输入）
 
-| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) |
-|---------|---------|---------|---------|-----------|
-| ProductSensor1 | PLC_PRG.bProductSensor1 | Boolean | Read Only | 500 |
-| ProductSensor2 | PLC_PRG.bProductSensor2 | Boolean | Read Only | 500 |
-| QualitySensor | PLC_PRG.bQualitySensor | Boolean | Read Only | 500 |
+物理传感器状态，只读。
+
+| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) | 说明 |
+|---------|---------|---------|---------|-----------|------|
+| ProductSensor1 | PLC_PRG.bProductSensor1 | Boolean | Read Only | 500 | 工位1产品检测传感器 |
+| ProductSensor2 | PLC_PRG.bProductSensor2 | Boolean | Read Only | 500 | 工位2产品检测传感器 |
+| QualitySensor | PLC_PRG.bQualitySensor | Boolean | Read Only | 500 | 质量检测传感器 (TRUE=合格) |
 
 #### 3. EnergyData（能源数据）
 
-| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) |
-|---------|---------|---------|---------|-----------|
-| ConveyorPower | PLC_PRG.rConveyorPower | Float | Read Only | 1000 |
-| Station1Power | PLC_PRG.rStation1Power | Float | Read Only | 1000 |
-| Station2Power | PLC_PRG.rStation2Power | Float | Read Only | 1000 |
-| TotalPower | PLC_PRG.rTotalPower | Float | Read Only | 1000 |
-| TotalEnergy | PLC_PRG.rTotalEnergy | Float | Read Only | 1000 |
-| EnergyAlarm | PLC_PRG.bEnergyAlarm | Boolean | Read Only | 1000 |
+能源计量和报警信息，只读。
+
+| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) | 说明 |
+|---------|---------|---------|---------|-----------|------|
+| ConveyorPower | PLC_PRG.rConveyorPower | Float | Read Only | 1000 | 传送带功率 (kW) |
+| Station1Power | PLC_PRG.rStation1Power | Float | Read Only | 1000 | 工位1功率 (kW) |
+| Station2Power | PLC_PRG.rStation2Power | Float | Read Only | 1000 | 工位2功率 (kW) |
+| TotalPower | PLC_PRG.rTotalPower | Float | Read Only | 1000 | 总功率 (kW) |
+| TotalEnergy | PLC_PRG.rTotalEnergy | Float | Read Only | 1000 | 累计能耗 (kWh) |
+| AveragePower | PLC_PRG.rAveragePower | Float | Read Only | 1000 | 平均功率 (kW) |
+| PeakPower | PLC_PRG.rPeakPower | Float | Read Only | 1000 | 峰值功率 (kW) |
+| EnergyAlarm | PLC_PRG.bEnergyAlarm | Boolean | Read Only | 500 | 能耗报警标志 |
+| EnergyDataUpdated | PLC_PRG.bEnergyDataUpdated | Boolean | Read Only | 1000 | 能耗数据更新标志 |
 
 #### 4. Production（生产统计）
 
-| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) |
-|---------|---------|---------|---------|-----------|
-| ProductCount | PLC_PRG.iProductCount | Word | Read Only | 1000 |
-| RejectCount | PLC_PRG.iRejectCount | Word | Read Only | 1000 |
-| RunTime | PLC_PRG.iRunTimeSeconds | DWord | Read Only | 1000 |
-| DownTime | PLC_PRG.iDownTimeSeconds | DWord | Read Only | 1000 |
+生产计数和时间统计，只读。
+
+| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) | 说明 |
+|---------|---------|---------|---------|-----------|------|
+| ProductCount | PLC_PRG.iProductCount | Word | Read Only | 1000 | 产品总计数 |
+| RejectCount | PLC_PRG.iRejectCount | Word | Read Only | 1000 | 不良品计数 |
+| RunTimeSeconds | PLC_PRG.iRunTimeSeconds | DWord | Read Only | 1000 | 运行时间（秒） |
+| DownTimeSeconds | PLC_PRG.iDownTimeSeconds | DWord | Read Only | 1000 | 停机时间（秒） |
 
 #### 5. SystemStatus（系统状态）
 
-| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) |
-|---------|---------|---------|---------|-----------|
-| SystemState | PLC_PRG.eSystemState | Word | Read Only | 1000 |
-| SystemFault | PLC_PRG.bSystemFault | Boolean | Read Only | 500 |
-| SystemStatus | PLC_PRG.sSystemStatus | String | Read Only | 2000 |
+系统整体状态和诊断信息，只读。
 
-### 创建单个标签步骤
+| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) | 说明 |
+|---------|---------|---------|---------|-----------|------|
+| SystemState | PLC_PRG.eSystemState | Word | Read Only | 500 | 系统状态 (0=待机, 1=运行, 2=故障) |
+| SystemFault | PLC_PRG.bSystemFault | Boolean | Read Only | 500 | 系统故障标志 |
+| SystemStatus | PLC_PRG.iSystemStatus | Word | Read Only | 1000 | 系统状态码 (0=初始化, 1=待机, 2=运行, 3=故障) |
+| AllDevicesReady | PLC_PRG.bAllDevicesReady | Boolean | Read Only | 1000 | 所有设备就绪标志 |
+| ActiveDeviceCount | PLC_PRG.iActiveDeviceCount | Word | Read Only | 1000 | 激活设备数量 |
+
+#### 6. DeviceStatus（设备状态详情）
+
+各设备的详细运行状态，只读。
+
+| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) | 说明 |
+|---------|---------|---------|---------|-----------|------|
+| ConveyorRunning | PLC_PRG.bConveyorRunning | Boolean | Read Only | 1000 | 传送带运行状态 |
+| ConveyorActualSpeed | PLC_PRG.rConveyorActualSpeed | Float | Read Only | 1000 | 传送带实际速度 (m/s) |
+| ConveyorFault | PLC_PRG.bConveyorFault | Boolean | Read Only | 500 | 传送带故障标志 |
+| Station1ActiveState | PLC_PRG.bStation1ActiveState | Boolean | Read Only | 1000 | 工位1激活状态 |
+| Station1Processing | PLC_PRG.bStation1Processing | Boolean | Read Only | 1000 | 工位1加工中 |
+| Station1ProcessComplete | PLC_PRG.bStation1ProcessComplete | Boolean | Read Only | 1000 | 工位1加工完成 |
+| Station1Fault | PLC_PRG.bStation1Fault | Boolean | Read Only | 500 | 工位1故障标志 |
+| Station1Status | PLC_PRG.iStation1Status | Word | Read Only | 1000 | 工位1状态码 |
+| Station2ActiveState | PLC_PRG.bStation2ActiveState | Boolean | Read Only | 1000 | 工位2激活状态 |
+| Station2Processing | PLC_PRG.bStation2Processing | Boolean | Read Only | 1000 | 工位2加工中 |
+| Station2ProcessComplete | PLC_PRG.bStation2ProcessComplete | Boolean | Read Only | 1000 | 工位2加工完成 |
+| Station2Fault | PLC_PRG.bStation2Fault | Boolean | Read Only | 500 | 工位2故障标志 |
+| Station2Status | PLC_PRG.iStation2Status | Word | Read Only | 1000 | 工位2状态码 |
+
+#### 7. QualityControl（质量控制）
+
+质量检测和剔除控制，只读。
+
+| 标签名称 | PLC变量 | 数据类型 | 访问权限 | 扫描率(ms) | 说明 |
+|---------|---------|---------|---------|-----------|------|
+| RejectActive | PLC_PRG.bRejectActive | Boolean | Read Only | 500 | 剔除机构激活状态 |
+| QualityCheckInProgress | PLC_PRG.bQualityCheckInProgress | Boolean | Read Only | 500 | 质检进行中 |
+| QualityCheckComplete | PLC_PRG.bQualityCheckComplete | Boolean | Read Only | 500 | 质检完成 |
+| QualityOK | PLC_PRG.bQualityOK | Boolean | Read Only | 500 | 质检合格标志 |
+| QualityNG | PLC_PRG.bQualityNG | Boolean | Read Only | 500 | 质检不合格标志 |
+| RejectRate | PLC_PRG.rRejectRate | Float | Read Only | 1000 | 不良率 (%) |
+
+### 创建单个标签详细步骤
 
 以DeviceControl.ConveyorStart为例：
 
-1. 创建标签
+1. **创建标签**
    - 右键点击"DeviceControl"标签组
    - 选择"New Tag"
 
-2. 配置标签属性
-   - Name: ConveyorStart
-   - Address: PLC_PRG.bConveyorStart
-   - Data Type: Boolean
-   - Client Access: Read/Write
-   - Scan Rate: 1000 ms
+2. **配置基本属性**
+   - Name: `ConveyorStart`
+   - Description: `传送带启动命令`
+   - Address: `PLC_PRG.bConveyorStart`
+   - Data Type: `Boolean`
 
-3. 保存标签
+3. **配置访问权限**
+   - Client Access: `Read/Write`
+   - Scan Rate: `1000` ms
+
+4. **高级设置（可选）**
+   - Respect Data Type: `Enabled`
+   - Scale: `None`
+
+5. **保存标签**
    - 点击"OK"
 
-4. 验证标签
-   - 标签应显示为绿色
-   - 在"Tag"列中应显示当前值
+6. **验证标签**
+   - 标签图标应显示为绿色（表示连接正常）
+   - 在"Value"列中应显示当前值
+   - 如果显示红色或"Bad Quality"，检查地址拼写和PLC连接
+
+### 批量导入标签（推荐）
+
+对于大量标签，可以使用CSV批量导入功能：
+
+1. **准备CSV文件**
+   
+   创建文件`tags_import.csv`，格式如下：
+   ```csv
+   Tag Name,Address,Data Type,Client Access,Scan Rate
+   DeviceControl.ConveyorStart,PLC_PRG.bConveyorStart,Boolean,Read/Write,1000
+   DeviceControl.ConveyorSpeed,PLC_PRG.rConveyorSpeed,Float,Read/Write,1000
+   DeviceControl.Station1Active,PLC_PRG.bStation1Active,Boolean,Read/Write,1000
+   ...
+   ```
+
+2. **导入标签**
+   - 右键点击设备"ProductionLine_PLC"
+   - 选择"Import Tags from CSV"
+   - 选择准备好的CSV文件
+   - 点击"Import"
+
+3. **验证导入结果**
+   - 检查所有标签是否正确创建
+   - 验证标签值是否正常更新
+
+### 标签地址格式说明
+
+KepServer中CodeSys标签地址格式：
+
+- **格式**: `程序名.变量名`
+- **示例**: `PLC_PRG.bConveyorStart`
+- **注意事项**:
+  - 地址区分大小写
+  - 必须与PLC程序中的变量名完全一致
+  - 功能块实例变量格式：`PLC_PRG.fbConveyor.bRunning`
+
+### 数据类型映射表
+
+| PLC数据类型 | KepServer数据类型 | 说明 |
+|------------|------------------|------|
+| BOOL | Boolean | 布尔值 |
+| INT | Word | 16位整数 |
+| DINT | DWord | 32位整数 |
+| REAL | Float | 32位浮点数 |
+| STRING | String | 字符串 |
+| TIME | DWord | 时间（毫秒） |
+
+### 标签质量状态说明
+
+标签显示的质量状态：
+
+- **Good (绿色)**: 标签值正常更新
+- **Bad (红色)**: 无法读取标签值
+  - 可能原因：地址错误、PLC未运行、网络断开
+- **Uncertain (黄色)**: 标签值不确定
+  - 可能原因：通信延迟、数据类型不匹配
+
+### 标签验证清单
+
+配置完成后，使用此清单验证每个标签组：
+
+- [ ] DeviceControl组：8个标签，全部可读写
+- [ ] SensorInput组：3个标签，全部只读
+- [ ] EnergyData组：9个标签，全部只读
+- [ ] Production组：4个标签，全部只读
+- [ ] SystemStatus组：5个标签，全部只读
+- [ ] DeviceStatus组：13个标签，全部只读
+- [ ] QualityControl组：6个标签，全部只读
+- [ ] 所有标签图标显示为绿色
+- [ ] 所有标签值正常更新
+- [ ] 可写标签可以成功写入
 
 ---
 
@@ -257,13 +446,28 @@ KepServer内置OPC UA服务器，需要启用才能让Python客户端连接。
 
 3. 配置服务器端点
    - Server Endpoint URL: opc.tcp://localhost:4840（默认端点）
-   - Allow Anonymous Login: Enabled（允许匿名访问，开发环境）
-   - Security Policy: None（无安全策略，开发环境）
+   - 点击"Server Endpoints"标签页
 
-生产环境建议：
+4. 配置匿名访问（重要）
+   - 点击"User Manager"按钮
+   - 确保"Allow Anonymous Login"已勾选
+   - 点击"Apply"保存
+
+5. 配置安全策略
+   - 在"Server Endpoints"中，确保至少有一个端点的Security Policy为"None"
+   - Security Mode: None（开发环境）
+   - Message Security Mode: None
+
+**开发环境配置（推荐）：**
+- Allow Anonymous Login: ✓ Enabled
+- Security Policy: None
+- Message Security Mode: None
+
+**生产环境建议：**
 - 禁用匿名登录
 - 启用用户名/密码认证
 - 使用安全策略（Basic256Sha256）
+- Message Security Mode: SignAndEncrypt
 
 4. 配置服务器属性
    - Server Name: KepServerEX
@@ -388,6 +592,58 @@ KepServer内置OPC UA服务器，需要启用才能让Python客户端连接。
 
 4. 检查安全设置
    - 开发环境：启用匿名访问
+
+### 问题4：身份验证失败
+
+症状：Python客户端报错"The user identity token is not valid" (BadIdentityTokenInvalid)
+
+这是最常见的连接问题，通常是因为KepServer的匿名访问未正确配置。
+
+**解决步骤（英文界面）：**
+
+1. **启用匿名登录**
+   - 打开KepServer Configuration
+   - 菜单栏：Settings → OPC UA Configuration
+   - 点击"User Manager"按钮
+   - 确保"Allow Anonymous Login"已勾选 ✓
+   - 点击"Apply"
+
+2. **检查端点安全策略**
+   - 在OPC UA Configuration窗口
+   - 切换到"Server Endpoints"标签页
+   - 确认至少有一个端点配置为：
+     - Security Policy: None
+     - Security Mode: None
+   - 如果没有，点击"Add"添加一个
+
+3. **重启OPC UA服务**
+   - 点击"OK"保存所有更改
+   - KepServer会自动重启OPC UA服务
+   - 等待状态栏显示"OPC UA Server: Running"
+
+**中文界面额外步骤（配置用户名密码方式）：**
+
+如果需要使用用户名密码，而非匿名登录：
+
+1. **打开设置** → **OPC UA配置** → 点击 **"用户管理器"**
+2. 点击 **"添加"**，填写：用户名 `admin`，密码 `admin123456789`，权限：读写
+3. 找到 **"端点"** / **"服务器端点"** 标签页，选中 `opc.tcp://localhost:4840` 对应的端点
+4. 编辑该端点，找到 **"用户令牌策略"** / **"User Token Policies"** 区域
+5. 点击 **"添加"**，令牌类型选 **"用户名"**，策略ID 填 `UserName`，安全策略选 **"无"**
+6. 点击 **"确定"** → KepServer 提示重启 OPC UA 服务 → 点击 **"是"**
+
+**常见错误配置：**
+- ❌ 匿名登录未启用
+- ❌ 所有端点都要求安全策略
+- ❌ 客户端代码设置了错误的安全字符串
+- ❌ 防火墙阻止了4840端口
+
+**正确配置检查清单：**
+- ✓ Allow Anonymous Login: Enabled
+- ✓ 至少一个端点Security Policy为None
+- ✓ OPC UA Server状态为Running
+- ✓ 端口4840未被防火墙阻止
+- ✓ Python客户端使用默认匿名连接
 
 ---
 
